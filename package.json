@@ -1,0 +1,40 @@
+{
+  "name": "teamgantt-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing the TeamGantt API for AI-driven team and time management",
+  "type": "module",
+  "bin": {
+    "teamgantt-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^5.1.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.20.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.24.0",
+    "vitest": "^3.0.0"
+  }
+}

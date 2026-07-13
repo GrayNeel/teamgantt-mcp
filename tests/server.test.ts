@@ -43,6 +43,9 @@ describe("teamgantt MCP server", () => {
       "get_todays_time_blocks", "get_active_time_block", "get_open_time_blocks",
       "create_time_block", "punch_in", "punch_out", "update_time_block",
       "delete_time_block",
+      "get_group", "update_group", "delete_group",
+      "list_comments", "create_comment", "update_comment", "delete_comment",
+      "pin_comment", "list_discussions",
     ]) {
       expect(names).toContain(expected);
     }
@@ -130,6 +133,58 @@ describe("teamgantt MCP server", () => {
     expect(String(url)).toContain("/v1/timesheets/42/2026-07-13");
     expect(init.method).toBe("PUT");
     expect(JSON.parse(init.body)).toEqual({ hours: 4 });
+  });
+
+  it("builds comment paths from target and target_id", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { id: 7 }));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "create_comment",
+      arguments: {
+        target: "tasks",
+        target_id: 42,
+        message: "Done, please review",
+        users_emailed: [13231984],
+      },
+    });
+
+    const [url, init] = fetchFn.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/tasks/42/comments");
+    expect(JSON.parse(init.body)).toEqual({
+      message: "Done, please review",
+      users_emailed: [13231984],
+    });
+  });
+
+  it("maps pin_comment to the pin endpoint with a pinned body", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, {}));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "pin_comment",
+      arguments: { target: "projects", target_id: 5, comment_id: 9, pinned: true },
+    });
+
+    const [url, init] = fetchFn.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/projects/5/comments/9/pin");
+    expect(JSON.parse(init.body)).toEqual({ pinned: true });
+  });
+
+  it("defaults list_discussions limit to 50 and maps project filter", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, []));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "list_discussions",
+      arguments: { project_ids: [1, 2], is_unread: true },
+    });
+
+    const url = new URL(fetchFn.mock.calls[0]![0]);
+    expect(url.pathname).toBe("/v1/discussions");
+    expect(url.searchParams.get("limit")).toBe("50");
+    expect(url.searchParams.get("is_unread")).toBe("true");
+    expect(url.searchParams.getAll("project_id[]")).toEqual(["1", "2"]);
   });
 
   it("returns isError with an actionable message on API failure", async () => {

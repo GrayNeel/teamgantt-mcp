@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   paginate,
   summarizeTree,
+  trimComments,
+  trimDiscussions,
+  trimGroupDetail,
   trimProjectList,
   trimTask,
   trimTimesheets,
@@ -190,6 +193,102 @@ describe("trimTimesheets", () => {
       name: "Configure proxy",
       project_id: 2254439,
       project_name: "NE_CIAM",
+    });
+  });
+});
+
+const fullUser = {
+  id: 13254063,
+  email_address: "someone@example.com",
+  first_name: "Jane",
+  last_name: "Doe",
+  daily_email_hour: null,
+  time_zone: "+02:00",
+  created_at: "2021-08-01",
+  status: "active",
+  pic: "https://api.teamgantt.com/assets/user_pic/?text=JD",
+  email_notification_settings: { everything: true },
+};
+
+describe("trimComments", () => {
+  it("keeps message fields and reduces added_by to id + name", () => {
+    const trimmed = trimComments([
+      {
+        id: 900,
+        message: "Looks good",
+        type: "comment",
+        target: "tasks",
+        target_id: 42,
+        target_name: "Test task",
+        project_id: 1,
+        added_date: "2026-07-14T10:00:00Z",
+        added_by: fullUser,
+        // noise:
+        app: "web",
+        reactions: [],
+        user: fullUser,
+        users_emailed: [],
+        is_read: true,
+      },
+    ]) as Array<Record<string, unknown>>;
+    expect(trimmed[0]!.message).toBe("Looks good");
+    expect(trimmed[0]!.added_by).toEqual({ id: 13254063, name: "Jane Doe" });
+    expect(trimmed[0]).not.toHaveProperty("reactions");
+    expect(trimmed[0]).not.toHaveProperty("user");
+  });
+});
+
+describe("trimDiscussions", () => {
+  it("keeps the unread envelope and reduces commenters to id + name", () => {
+    const trimmed = trimDiscussions({
+      unread_count: 41,
+      unread_mention_count: 0,
+      discussions: [
+        {
+          target: "tasks",
+          target_id: 42,
+          target_name: "Test task",
+          project_id: 1,
+          project_name: "P",
+          message_preview: "Looks good",
+          last_comment_date: "2026-07-14T10:00:00Z",
+          is_unread: true,
+          commenters: [fullUser],
+          has_documents: false,
+        },
+      ],
+    }) as { unread_count: number; discussions: Array<Record<string, unknown>> };
+    expect(trimmed.unread_count).toBe(41);
+    expect(trimmed.discussions[0]!.commenters).toEqual([{ id: 13254063, name: "Jane Doe" }]);
+    expect(trimmed.discussions[0]!.message_preview).toBe("Looks good");
+    expect(trimmed.discussions[0]).not.toHaveProperty("has_documents");
+  });
+});
+
+describe("trimGroupDetail", () => {
+  it("keeps group fields and summarizes embedded task children", () => {
+    const trimmed = trimGroupDetail({
+      id: 24237897,
+      name: "Phase 1",
+      type: "group",
+      project_id: 1,
+      project_name: "P",
+      parent_group_id: null,
+      comment_info: {},
+      document_info: {},
+      children: [fullTask],
+    }) as Record<string, unknown>;
+    expect(trimmed.name).toBe("Phase 1");
+    expect(trimmed.task_count).toBe(1);
+    expect(trimmed).not.toHaveProperty("comment_info");
+    const children = trimmed.children as Array<Record<string, unknown>>;
+    expect(children[0]).toEqual({
+      id: 113485408,
+      name: "Configure proxy",
+      type: "task",
+      start_date: "2026-07-01",
+      end_date: "2026-07-10",
+      percent_complete: 40,
     });
   });
 });

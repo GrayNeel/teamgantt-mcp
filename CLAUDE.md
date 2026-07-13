@@ -4,7 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-MCP (Model Context Protocol) server for the TeamGantt API. TypeScript, ESM, Node ≥ 20, built on `@modelcontextprotocol/sdk` 1.x (stable — do not migrate to the 2.x beta without asking). Milestone 1 covers Projects, Groups, Tasks (dependencies + assignments) and Time Tracking; the roadmap in README.md lists M2–M4 domains still to be added.
+MCP (Model Context Protocol) server for the TeamGantt API. TypeScript, ESM, Node ≥ 20, built on `@modelcontextprotocol/sdk` 1.x (stable — do not migrate to the 2.x beta without asking). Development proceeds in milestones (see Milestone status below); each milestone is one or more API domains added via the mechanical pattern in "Adding a new API domain".
+
+## Milestone status
+
+| Milestone | Scope | Status |
+|---|---|---|
+| M1 | Projects, Groups (list/create), Tasks + dependencies + assignments, Time tracking | ✅ shipped (tag `v0.1.0`) |
+| M1.5 | Response trimming (`src/tools/trim.ts`), client-side pagination guard | ✅ shipped (v0.2.0) |
+| M2 | Comments/notes on tasks/groups/projects (`/v1/{target}/{targetId}/comments` list/create/update/delete/pin, target ∈ `tasks\|groups\|projects`), discussions inbox (`GET /v1/discussions`), group get/update/delete | ✅ shipped (v0.3.0) |
+| M3 | People: `current_user`, companies, project/company resources, workload/availability | ⬜ next |
+| M4 | Reports (`/v1/reports/project_health`, `/v1/reports/time-tracking`), webhooks, MCP resources (`teamgantt://…`), multi-tenant HTTP auth | ⬜ |
+
+When starting a milestone: extract the endpoint schemas from the embedded OpenAPI spec first (see "TeamGantt API source of truth"), sample the real responses if a token is available, then follow the 3-step domain recipe. Bump the version in both `package.json` and `SERVER_VERSION` in `src/server.ts`, and update this table plus the README tool catalog when shipping.
 
 ## Commands
 

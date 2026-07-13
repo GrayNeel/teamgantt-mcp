@@ -156,3 +156,22 @@ export const createGroup = {
     .optional()
     .describe("ID of the parent group (omit for a root-level group)"),
 };
+
+export const getGroup = {
+  group_id: id.describe("Unique identifier of the group"),
+};
+
+export const updateGroup = {
+  group_id: id.describe("Unique identifier of the group to update"),
+  name: z.string().min(1).max(255).optional().describe("Updated group name"),
+  parent_group_id: id
+    .optional()
+    .describe("Move the group under a different parent group"),
+  sort: z.number().int().optional().describe("Updated sort order"),
+};
+
+export const deleteGroup = {
+  group_id: id.describe(
+    "Unique identifier of the group to delete (deletes its tasks too — cannot be undone)",
+  ),
+};

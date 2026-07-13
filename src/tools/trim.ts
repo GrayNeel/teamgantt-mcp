@@ -122,6 +122,61 @@ export function summarizeTree(nodes: unknown, includeTasks = false): unknown {
   return result;
 }
 
+/** Reduce a full user object (email, timezone, notification settings…) to id + name. */
+function trimUser(user: unknown): unknown {
+  if (!isDict(user)) return user;
+  const name = [user.first_name, user.last_name].filter(Boolean).join(" ");
+  return { id: user.id, ...(name ? { name } : {}) };
+}
+
+const COMMENT_KEYS = [
+  "id", "message", "type", "target", "target_id", "target_name", "project_id",
+  "added_date", "updated_at", "pin_date", "is_read", "attached_documents",
+] as const;
+
+export function trimComment(comment: unknown): unknown {
+  if (!isDict(comment)) return comment;
+  const out = pick(comment, COMMENT_KEYS);
+  if (comment.added_by !== undefined) out.added_by = trimUser(comment.added_by);
+  return out;
+}
+
+export function trimComments(response: unknown): unknown {
+  return Array.isArray(response) ? response.map(trimComment) : response;
+}
+
+const DISCUSSION_KEYS = [
+  "target", "target_id", "target_name", "project_id", "project_name",
+  "message_preview", "last_comment_date", "is_unread", "is_mentioned",
+  "has_unread_mention", "is_my_task", "is_note", "is_starred",
+] as const;
+
+/** Envelope of GET /v1/discussions: {unread_count, unread_mention_count, discussions: [...]} */
+export function trimDiscussions(response: unknown): unknown {
+  if (!isDict(response) || !Array.isArray(response.discussions)) return response;
+  return {
+    ...response,
+    discussions: response.discussions.map((item) => {
+      if (!isDict(item)) return item;
+      const out = pick(item, DISCUSSION_KEYS);
+      if (Array.isArray(item.commenters)) out.commenters = item.commenters.map(trimUser);
+      return out;
+    }),
+  };
+}
+
+/** Single-group detail: keep group fields but summarize embedded children (can be >100 KB raw). */
+export function trimGroupDetail(group: unknown): unknown {
+  if (!isDict(group)) return group;
+  const out = pick(group, [...GROUP_KEYS, "project_name", "parent_group_name"]);
+  if (Array.isArray(group.children)) {
+    const taskCount = group.children.filter((c) => isDict(c) && c.type !== "group").length;
+    if (taskCount > 0) out.task_count = taskCount;
+    out.children = summarizeTree(group.children, true);
+  }
+  return out;
+}
+
 /** Timesheet entries embed the full ~17 KB task object — reduce it to a reference. */
 export function trimTimesheetEntry(entry: unknown): unknown {
   if (!isDict(entry)) return entry;

@@ -95,7 +95,16 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `delete_task` | Permanently delete a task |
 | `add_task_dependency` / `remove_task_dependency` | Manage FS/SS/FF/SF dependencies with lead/lag |
 | `list_task_resources` / `assign_task_resource` / `update_task_assignment` / `remove_task_assignment` | Manage who works on a task and hour allocations |
-| `list_groups` / `create_group` | Manage the groups that contain tasks |
+| `list_groups` / `create_group` / `get_group` / `update_group` / `delete_group` | Manage the groups that contain tasks |
+
+### Comments & discussions
+| Tool | Description |
+|---|---|
+| `list_comments` | Read comments/notes on a task, group, or project |
+| `create_comment` | Post a comment or note, optionally notifying users (@mentions) |
+| `update_comment` / `delete_comment` | Edit or remove a comment |
+| `pin_comment` | Pin/unpin a comment to the top of its list |
+| `list_discussions` | Cross-project discussion inbox with unread/mention filters |
 
 ### Time tracking
 | Tool | Description |
@@ -142,6 +151,6 @@ npm run build       # tsup → dist/
 
 ## Roadmap
 
-- **M2:** Groups deep-dive + Comments (discussions, pinning)
-- **M3:** Companies/Resources + Boards (kanban)
+- ~~**M2:** Groups deep-dive + Comments (discussions, pinning)~~ ✅ shipped in v0.3.0
+- **M3:** People — current_user, companies, project/company resources, workload
 - **M4:** Reports, Bookmarks, Webhooks, Custom fields/RACI; MCP resources (`teamgantt://...`); multi-tenant HTTP auth

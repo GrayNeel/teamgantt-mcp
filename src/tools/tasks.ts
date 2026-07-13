@@ -1,5 +1,5 @@
 import * as schema from "../schemas/tasks.js";
-import { paginate, summarizeTree, trimResource, trimTask } from "./trim.js";
+import { paginate, summarizeTree, trimGroupDetail, trimResource, trimTask } from "./trim.js";
 import { run, type ToolModule } from "./types.js";
 
 export const registerTaskTools: ToolModule = (server, client) => {
@@ -216,5 +216,43 @@ export const registerTaskTools: ToolModule = (server, client) => {
       inputSchema: schema.createGroup,
     },
     async (input) => run(() => client.post("/v1/groups", input)),
+  );
+
+  server.registerTool(
+    "get_group",
+    {
+      title: "Get group",
+      description:
+        "Get details of a single task group, with its children summarized " +
+        "(minimal task entries — use get_task for full details of one task).",
+      inputSchema: schema.getGroup,
+      annotations: { readOnlyHint: true },
+    },
+    async ({ group_id }) =>
+      run(async () => trimGroupDetail(await client.get(`/v1/groups/${group_id}`))),
+  );
+
+  server.registerTool(
+    "update_group",
+    {
+      title: "Update group",
+      description:
+        "Rename a group, move it under a different parent, or change its sort order. " +
+        "Partial update — send only the fields to change.",
+      inputSchema: schema.updateGroup,
+    },
+    async ({ group_id, ...body }) => run(() => client.patch(`/v1/groups/${group_id}`, body)),
+  );
+
+  server.registerTool(
+    "delete_group",
+    {
+      title: "Delete group",
+      description:
+        "Permanently delete a group and everything inside it (tasks, subgroups). Cannot be undone.",
+      inputSchema: schema.deleteGroup,
+      annotations: { destructiveHint: true },
+    },
+    async ({ group_id }) => run(() => client.delete(`/v1/groups/${group_id}`)),
   );
 };

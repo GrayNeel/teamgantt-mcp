@@ -48,10 +48,17 @@ describe("teamgantt MCP server", () => {
     }
   });
 
-  it("calls the TeamGantt API and returns JSON on success", async () => {
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValue(jsonResponse(200, { data: [{ id: 1, name: "Website" }] }));
+  it("calls the TeamGantt API and returns trimmed JSON on success", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse(200, {
+        total: 1,
+        count: 1,
+        current_page: 1,
+        projects: [
+          { id: 1, name: "Website", status: "Active", accesses: [], integrations: [] },
+        ],
+      }),
+    );
     const client = await connectedClient(fetchFn);
 
     const result = await client.callTool({
@@ -61,12 +68,35 @@ describe("teamgantt MCP server", () => {
 
     expect(result.isError).toBeFalsy();
     const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
-    expect(JSON.parse(text)).toEqual({ data: [{ id: 1, name: "Website" }] });
+    const parsed = JSON.parse(text);
+    expect(parsed.total).toBe(1);
+    expect(parsed.projects[0]).toEqual({ id: 1, name: "Website", status: "Active" });
 
     const url = new URL(fetchFn.mock.calls[0]![0]);
     expect(url.pathname).toBe("/v1/projects");
     expect(url.searchParams.get("status")).toBe("active");
     expect(url.searchParams.getAll("company_ids[]")).toEqual(["10", "20"]);
+  });
+
+  it("caps list_tasks client-side when the API ignores per_page", async () => {
+    const tasks = Array.from({ length: 200 }, (_, i) => ({
+      id: i + 1,
+      name: `Task ${i + 1}`,
+      type: "task",
+      comment_info: {},
+    }));
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, tasks));
+    const client = await connectedClient(fetchFn);
+
+    const result = await client.callTool({
+      name: "list_tasks",
+      arguments: { per_page: 10, page: 3 },
+    });
+
+    const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
+    const parsed = JSON.parse(text);
+    expect(parsed).toMatchObject({ total: 200, page: 3, per_page: 10, count: 10 });
+    expect(parsed.tasks[0]).toEqual({ id: 21, name: "Task 21", type: "task" });
   });
 
   it("maps dependency inputs to the API body shape", async () => {

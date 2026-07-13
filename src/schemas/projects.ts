@@ -58,8 +58,11 @@ export const archiveProject = {
 
 export const getProjectChildren = {
   project_id: id.describe("Unique identifier of the project"),
-  is_flat_list: z
+  include_tasks: z
     .boolean()
     .optional()
-    .describe("Return children as a flat list instead of a nested tree"),
+    .describe(
+      "Also include tasks as minimal entries (id, name, dates, progress). " +
+        "Off by default — groups carry a task_count instead. On large projects prefer list_tasks",
+    ),
 };

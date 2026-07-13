@@ -1,4 +1,5 @@
 import * as schema from "../schemas/projects.js";
+import { summarizeTree, trimProjectList } from "./trim.js";
 import { run, type ToolModule } from "./types.js";
 
 export const registerProjectTools: ToolModule = (server, client) => {
@@ -7,13 +8,17 @@ export const registerProjectTools: ToolModule = (server, client) => {
     {
       title: "List projects",
       description:
-        "List TeamGantt projects accessible to the current user. Defaults to active projects; " +
-        "use the status filter for on-hold/complete projects. Use this first to discover project IDs.",
+        "List TeamGantt projects accessible to the current user (compact summaries — use get_project for full details). " +
+        "Defaults to active projects; use the status filter for on-hold/complete projects. Use this first to discover project IDs.",
       inputSchema: schema.listProjects,
       annotations: { readOnlyHint: true },
     },
     async ({ company_ids, ...rest }) =>
-      run(() => client.get("/v1/projects", { ...rest, "company_ids[]": company_ids })),
+      run(async () =>
+        trimProjectList(
+          await client.get("/v1/projects", { ...rest, "company_ids[]": company_ids }),
+        ),
+      ),
   );
 
   server.registerTool(
@@ -31,15 +36,21 @@ export const registerProjectTools: ToolModule = (server, client) => {
   server.registerTool(
     "get_project_children",
     {
-      title: "Get project structure (groups and tasks)",
+      title: "Get project structure (group tree)",
       description:
-        "Get the full tree of groups and tasks inside a project. Use this to find parent_group_id values " +
-        "needed when creating tasks, and to see the current project plan.",
+        "Get the group tree of a project with per-group task counts — use this to find parent_group_id " +
+        "values needed when creating tasks. Set include_tasks for minimal task entries; " +
+        "for browsing tasks in detail use the paginated list_tasks instead.",
       inputSchema: schema.getProjectChildren,
       annotations: { readOnlyHint: true },
     },
-    async ({ project_id, is_flat_list }) =>
-      run(() => client.get(`/v1/projects/${project_id}/children`, { is_flat_list })),
+    async ({ project_id, include_tasks }) =>
+      run(async () =>
+        summarizeTree(
+          await client.get(`/v1/projects/${project_id}/children`),
+          include_tasks ?? false,
+        ),
+      ),
   );
 
   server.registerTool(

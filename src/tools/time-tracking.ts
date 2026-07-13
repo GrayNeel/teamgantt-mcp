@@ -1,4 +1,5 @@
 import * as schema from "../schemas/time.js";
+import { trimTimesheets } from "./trim.js";
 import { run, type ToolModule } from "./types.js";
 
 export const registerTimeTrackingTools: ToolModule = (server, client) => {
@@ -13,11 +14,13 @@ export const registerTimeTrackingTools: ToolModule = (server, client) => {
       annotations: { readOnlyHint: true },
     },
     async ({ project_ids, ...rest }) =>
-      run(() =>
-        client.get("/v1/timesheets", {
-          ...rest,
-          project_ids: project_ids?.join(","),
-        }),
+      run(async () =>
+        trimTimesheets(
+          await client.get("/v1/timesheets", {
+            ...rest,
+            project_ids: project_ids?.join(","),
+          }),
+        ),
       ),
   );
 

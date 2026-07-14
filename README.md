@@ -1,4 +1,4 @@
-# teamgantt-mcp
+# TeamGantt MCP Server
 
 **Give your AI assistant full control of TeamGantt** — plan projects, build task trees with dependencies, assign people, balance workload, and track time, all through the [Model Context Protocol](https://modelcontextprotocol.io).
 

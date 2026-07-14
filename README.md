@@ -243,11 +243,13 @@ npm run build       # tsup → dist/
 
 Tests never hit the network: the HTTP client takes an injectable `fetchFn`, and integration tests wire a real MCP client to the real server over in-memory and HTTP transports.
 
-## 🗺️ Status
+## 🗺️ Roadmap
 
-All planned milestones are shipped (v0.5.0): projects/tasks/time tracking → response trimming → comments & discussions → people/resources/workload → reports, webhooks, MCP resources, multi-tenant HTTP auth.
+Milestones **M1–M4 are shipped** (v0.5.0): projects/tasks/time tracking → response trimming → comments & discussions → people/resources/workload → reports, webhooks, MCP resources, multi-tenant HTTP auth.
 
-Candidate future domains: bookmarks, custom fields, RACI roles, boards, baselines, critical path.
+Planned next: task detail & content (checklists, documents, history), planning & analysis (critical path, baselines, RACI), sharing & access control, Kanban boards, company configuration & templates, and custom fields.
+
+**See [ROADMAP.md](ROADMAP.md)** for the full milestone plan with per-milestone scope and endpoints.
 
 ## 📄 License
 

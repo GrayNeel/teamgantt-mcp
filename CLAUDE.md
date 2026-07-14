@@ -15,7 +15,7 @@ MCP (Model Context Protocol) server for the TeamGantt API. TypeScript, ESM, Node
 | M2 | Comments/notes on tasks/groups/projects (`/v1/{target}/{targetId}/comments` list/create/update/delete/pin, target ∈ `tasks\|groups\|projects`), discussions inbox (`GET /v1/discussions`), group get/update/delete | ✅ shipped (v0.3.0) |
 | M3 | People: `current_user`, companies (`GET/PATCH /v1/companies/{id}`, users CRUD, `/projects`), resources (project + company + `resource_options`), workload (`/v1/workload/{users\|unassigned\|company_resources\|project_resources}`, comma-separated `ids`) | ✅ shipped (v0.4.0) |
 | M4 | Reports (`GET /v1/reports/health/project` — the modern endpoint; legacy `project_health` embeds full projects, beta `time-tracking` 404s live), webhooks (list/create only — API has no delete), MCP resources (`teamgantt://…` in `src/mcp-resources.ts`), multi-tenant HTTP auth (per-session bearer at initialize, env token fallback, 401 otherwise; stdio still requires the env token) | ✅ shipped (v0.5.0) |
-| M5? | Candidates: bookmarks, custom fields, RACI, boards, baselines, critical path | ⬜ unplanned |
+| M5+ | Task detail & content, planning & analysis, sharing/access, boards, company config, custom fields — see [ROADMAP.md](ROADMAP.md) for per-milestone scope and endpoints | ⬜ planned |
 
 When starting a milestone: extract the endpoint schemas from the embedded OpenAPI spec first (see "TeamGantt API source of truth"), sample the real responses if a token is available, then follow the 3-step domain recipe. Bump the version in both `package.json` and `SERVER_VERSION` in `src/server.ts`, and update this table plus the README tool catalog when shipping.
 

@@ -30,7 +30,7 @@ npx vitest run tests/server.test.ts             # single file
 npx vitest run -t "retries on 429"              # single test by name
 ```
 
-Run locally: `TEAMGANTT_API_TOKEN=... node dist/index.js` (stdio, default) or `node dist/index.js --http --port 3000` (Streamable HTTP at `/mcp`, health at `/healthz`). Manual testing: `npx @modelcontextprotocol/inspector node dist/index.js`.
+Run locally: `TEAMGANTT_API_TOKEN=... node dist/index.js` (stdio, default) or `node dist/index.js --http --port 3000` (Streamable HTTP at `/mcp`, health at `/healthz`). Manual testing: `npx @modelcontextprotocol/inspector node dist/index.js`. Containerized: `docker compose up -d --build` (see `Dockerfile` + `docker-compose.yml`) — the HTTP transport binds `HOST` (default `127.0.0.1`; the image sets `0.0.0.0` so the container is reachable).
 
 CI (`.gitlab-ci.yml`) runs typecheck + lint + test, then build. All four must pass before pushing.
 

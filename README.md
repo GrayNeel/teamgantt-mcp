@@ -26,6 +26,7 @@ Plan projects, build task trees with dependencies, assign people, balance worklo
 - 📐 **Spec-faithful schemas** — tool inputs are extracted field-for-field from TeamGantt's official OpenAPI spec, then validated against live responses (several documented endpoints behave differently in production — those differences are baked in, not guessed).
 - 📚 **MCP resources** — browse `teamgantt://projects`, `teamgantt://projects/{id}/tree`, and `teamgantt://current-user` from resource-aware clients.
 - 🔌 **Two transports** — stdio for local clients (Claude Desktop, Claude Code, Cursor) and Streamable HTTP with session management, DNS-rebinding protection, and a `/healthz` probe.
+- 🐳 **Runs anywhere** — one-command Docker Compose deployment; a small multi-stage, non-root `node:22-alpine` image exposes the HTTP server as a container.
 - 🏢 **Multi-tenant HTTP auth** — each HTTP session can bring its own TeamGantt token via `Authorization: Bearer`; a server-side env token works as single-tenant fallback.
 - ♻️ **Resilient client** — automatic retry on 429/5xx honoring `Retry-After`, and API errors surface as structured tool results with actionable hints instead of crashes.
 - ✅ **Strict TypeScript, fully tested** — 46 tests including real client↔server MCP integration over in-memory and HTTP transports. No network in tests.
@@ -81,9 +82,34 @@ node dist/index.js --http --port 3000
 # MCP endpoint: http://127.0.0.1:3000/mcp   Health: http://127.0.0.1:3000/healthz
 ```
 
-The server binds to 127.0.0.1 with DNS-rebinding protection; extra allowed `Host` values go in `MCP_ALLOWED_HOSTS=host1,host2`.
+The server binds to 127.0.0.1 by default with DNS-rebinding protection; set `HOST=0.0.0.0` to accept external connections (needed in containers), and add any extra `Host` header values via `MCP_ALLOWED_HOSTS=host1,host2`.
 
 **Multi-tenant:** each MCP session may authenticate with its own TeamGantt token by sending `Authorization: Bearer <personal access token>` on the initialize request — the session is bound to that token. Without the header the server falls back to `TEAMGANTT_API_TOKEN`; with neither, initialization is rejected with 401. (stdio mode always requires the env token.)
+
+### Docker
+
+Run the HTTP server in a container — no local Node install needed.
+
+```bash
+# 1. Provide a token (single-tenant fallback). Skip to require per-session tokens.
+echo "TEAMGANTT_API_TOKEN=your-token" > .env
+
+# 2. Build and start
+docker compose up -d --build
+
+# MCP endpoint: http://localhost:3000/mcp   Health: http://localhost:3000/healthz
+```
+
+The image is a multi-stage build on `node:22-alpine`, runs as a non-root user, ships only production dependencies plus the bundle, binds `0.0.0.0`, and includes a `/healthz` container healthcheck. Override the published port with `PORT=8080 docker compose up -d`.
+
+Without Compose:
+
+```bash
+docker build -t teamgantt-mcp .
+docker run -p 3000:3000 -e TEAMGANTT_API_TOKEN=your-token teamgantt-mcp
+```
+
+Point any HTTP MCP client at `http://localhost:3000/mcp`. In multi-tenant mode (no server-side token), each client sends its own `Authorization: Bearer <token>`.
 
 ## 🧰 Tools
 
@@ -213,6 +239,7 @@ Read-only resources under the `teamgantt://` scheme, for clients that browse res
 | `TEAMGANTT_API_TOKEN` | stdio only | — | TeamGantt personal access token (in HTTP mode it's the fallback for sessions that don't send their own bearer token) |
 | `TEAMGANTT_BASE_URL` | — | `https://api.teamgantt.com` | API origin override |
 | `PORT` | — | `3000` | HTTP transport port (or `--port`) |
+| `HOST` | — | `127.0.0.1` | HTTP bind interface; set `0.0.0.0` to accept external/container connections |
 | `MCP_ALLOWED_HOSTS` | — | — | Extra allowed Host headers for HTTP transport |
 | `LOG_LEVEL` | — | `info` | `error` \| `warn` \| `info` \| `debug` |
 

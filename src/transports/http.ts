@@ -7,6 +7,12 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export interface HttpOptions {
   port: number;
+  /**
+   * Network interface to bind. Defaults to 127.0.0.1 (loopback only) for
+   * safety; set to 0.0.0.0 to accept connections from outside the host —
+   * required when running inside a container.
+   */
+  host?: string;
   /** Extra Host-header values to accept (DNS-rebinding protection). */
   allowedHosts?: string[];
   /**
@@ -29,6 +35,7 @@ function bearerToken(req: Request): string | undefined {
 
 export async function runHttp(options: HttpOptions): Promise<HttpServer> {
   const { port, createServer } = options;
+  const host = options.host ?? "127.0.0.1";
   // Mutated after listen with the actual bound port (supports port 0 in tests).
   const allowedHosts = ["127.0.0.1", "localhost", ...(options.allowedHosts ?? [])];
 
@@ -104,11 +111,11 @@ export async function runHttp(options: HttpOptions): Promise<HttpServer> {
   });
 
   const httpServer = await new Promise<HttpServer>((resolve) => {
-    const s = app.listen(port, "127.0.0.1", () => resolve(s));
+    const s = app.listen(port, host, () => resolve(s));
   });
   const address = httpServer.address();
   const actualPort = typeof address === "object" && address ? address.port : port;
   allowedHosts.push(`127.0.0.1:${actualPort}`, `localhost:${actualPort}`);
-  console.error(`teamgantt-mcp listening on http://127.0.0.1:${actualPort}/mcp`);
+  console.error(`teamgantt-mcp listening on http://${host}:${actualPort}/mcp`);
   return httpServer;
 }

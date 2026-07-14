@@ -1,0 +1,16 @@
+services:
+  teamgantt-mcp:
+    build: .
+    image: teamgantt-mcp:latest
+    # Streamable HTTP endpoint at /mcp, health at /healthz.
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # Optional single-tenant fallback token. Leave unset to require each MCP
+      # client to send its own 'Authorization: Bearer <token>' (multi-tenant).
+      TEAMGANTT_API_TOKEN: ${TEAMGANTT_API_TOKEN:-}
+      # Comma-separated extra Host header values to accept, if you reach the
+      # server through a hostname other than localhost (DNS-rebinding guard).
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    restart: unless-stopped

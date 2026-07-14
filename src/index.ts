@@ -22,8 +22,10 @@ async function main(): Promise<void> {
     const allowedHosts = process.env.MCP_ALLOWED_HOSTS?.split(",")
       .map((h) => h.trim())
       .filter(Boolean);
+    const host = process.env.HOST?.trim() || undefined;
     await runHttp({
       port: args.port,
+      ...(host ? { host } : {}),
       ...(allowedHosts ? { allowedHosts } : {}),
       ...(config.apiToken ? { defaultToken: config.apiToken } : {}),
       createServer: (apiToken) =>

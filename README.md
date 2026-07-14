@@ -2,12 +2,12 @@
 
 **Give your AI assistant full control of TeamGantt** — plan projects, build task trees with dependencies, assign people, balance workload, and track time, all through the [Model Context Protocol](https://modelcontextprotocol.io).
 
+[![CI](https://github.com/GrayNeel/teamgantt-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/GrayNeel/teamgantt-mcp/actions/workflows/ci.yml)
 [![Latest tag](https://img.shields.io/github/v/tag/GrayNeel/teamgantt-mcp?label=version&color=blue)](https://github.com/GrayNeel/teamgantt-mcp/tags)
 [![License: MIT](https://img.shields.io/github/license/GrayNeel/teamgantt-mcp?color=green)](LICENSE)
 [![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.x-8A2BE2)](https://github.com/modelcontextprotocol/typescript-sdk)
-[![Tests](https://img.shields.io/badge/tests-46%20passing-brightgreen?logo=vitest&logoColor=white)](tests)
 
 An MCP server for the [TeamGantt API](https://api-docs.teamgantt.com): **66 tools across 9 domains**, plus browsable `teamgantt://` resources, dual transports, and multi-tenant HTTP auth.
 

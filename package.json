@@ -2,6 +2,21 @@
   "name": "teamgantt-mcp",
   "version": "0.5.0",
   "description": "MCP server exposing the TeamGantt API for AI-driven team and time management",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GrayNeel/teamgantt-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "teamgantt",
+    "gantt",
+    "project-management",
+    "time-tracking",
+    "ai",
+    "llm"
+  ],
   "type": "module",
   "bin": {
     "teamgantt-mcp": "dist/index.js"

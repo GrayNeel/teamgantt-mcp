@@ -1,48 +1,52 @@
 # teamgantt-mcp
 
-An MCP (Model Context Protocol) server for the [TeamGantt API](https://api-docs.teamgantt.com), giving AI assistants full project-planning and time-management capabilities: create and schedule projects, build task plans with dependencies, assign people, and track time.
+**Give your AI assistant full control of TeamGantt** — plan projects, build task trees with dependencies, assign people, balance workload, and track time, all through the [Model Context Protocol](https://modelcontextprotocol.io).
 
-- **Transports:** stdio (default) and Streamable HTTP
-- **Runtime:** Node.js ≥ 20
-- **Milestone 1 scope:** Projects · Groups · Tasks (incl. dependencies & assignments) · Time tracking
+[![Latest tag](https://img.shields.io/github/v/tag/GrayNeel/teamgantt-mcp?label=version&color=blue)](https://github.com/GrayNeel/teamgantt-mcp/tags)
+[![License: MIT](https://img.shields.io/github/license/GrayNeel/teamgantt-mcp?color=green)](LICENSE)
+[![Node.js ≥ 20](https://img.shields.io/badge/node-%E2%89%A5%2020-brightgreen?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.x-8A2BE2)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![Tests](https://img.shields.io/badge/tests-46%20passing-brightgreen?logo=vitest&logoColor=white)](tests)
 
-## Setup
+An MCP server for the [TeamGantt API](https://api-docs.teamgantt.com): **66 tools across 9 domains**, plus browsable `teamgantt://` resources, dual transports, and multi-tenant HTTP auth.
+
+## ✨ Features
+
+- 🧰 **66 tools, 9 domains** — projects, groups & tasks (dependencies, assignments, bulk create), comments & discussions, time tracking (timesheets + punch in/out), people & companies, resources, workload, health reports, webhooks.
+- 🪶 **Context-friendly by design** — real TeamGantt payloads are huge (one measured project tree: **4.8 MB**). Every list/tree tool returns compact summaries (that tree becomes ~19 KB; a 4.7 MB task list ~16 KB per page), with client-side pagination as a guard where the live API ignores `per_page`. Detail tools stay full-fidelity.
+- 📐 **Spec-faithful schemas** — tool inputs are extracted field-for-field from TeamGantt's official OpenAPI spec, then validated against live responses (several documented endpoints behave differently in production — those differences are baked in, not guessed).
+- 📚 **MCP resources** — browse `teamgantt://projects`, `teamgantt://projects/{id}/tree`, and `teamgantt://current-user` from resource-aware clients.
+- 🔌 **Two transports** — stdio for local clients (Claude Desktop, Claude Code, Cursor) and Streamable HTTP with session management, DNS-rebinding protection, and a `/healthz` probe.
+- 🏢 **Multi-tenant HTTP auth** — each HTTP session can bring its own TeamGantt token via `Authorization: Bearer`; a server-side env token works as single-tenant fallback.
+- ♻️ **Resilient client** — automatic retry on 429/5xx honoring `Retry-After`, and API errors surface as structured tool results with actionable hints instead of crashes.
+- ✅ **Strict TypeScript, fully tested** — 46 tests including real client↔server MCP integration over in-memory and HTTP transports. No network in tests.
+
+## 🚀 Quick start
 
 ```bash
+git clone https://github.com/GrayNeel/teamgantt-mcp.git
+cd teamgantt-mcp
 npm install
 npm run build
 ```
 
-Create a TeamGantt personal access token at <https://app.teamgantt.com/admin/developers/tokens> and export it:
+Create a TeamGantt personal access token at <https://app.teamgantt.com/admin/developers/tokens>, then:
 
 ```bash
 export TEAMGANTT_API_TOKEN=your-token   # or copy .env.example to .env and use node --env-file=.env
+node dist/index.js                      # stdio (default)
 ```
 
-### Run (stdio — for local MCP clients)
+### Connect a client
 
-```bash
-node dist/index.js
-```
-
-### Run (Streamable HTTP)
-
-```bash
-node dist/index.js --http --port 3000
-# MCP endpoint: http://127.0.0.1:3000/mcp   Health: http://127.0.0.1:3000/healthz
-```
-
-The HTTP transport binds to 127.0.0.1 with DNS-rebinding protection. Extra allowed `Host` values can be added via `MCP_ALLOWED_HOSTS=host1,host2`.
-
-## Client configuration
-
-### Claude Code
+**Claude Code**
 
 ```bash
 claude mcp add teamgantt -e TEAMGANTT_API_TOKEN=your-token -- node /path/to/teamgantt-mcp/dist/index.js
 ```
 
-### Claude Desktop / Cursor / other stdio clients
+**Claude Desktop / Cursor / any stdio client**
 
 ```json
 {
@@ -56,25 +60,28 @@ claude mcp add teamgantt -e TEAMGANTT_API_TOKEN=your-token -- node /path/to/team
 }
 ```
 
-### MCP Inspector (manual testing)
+**MCP Inspector (manual testing)**
 
 ```bash
 TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/index.js
 ```
 
-## Environment variables
+### HTTP mode
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `TEAMGANTT_API_TOKEN` | stdio only | — | TeamGantt personal access token (in HTTP mode it's the fallback for sessions that don't send their own bearer token) |
-| `TEAMGANTT_BASE_URL` | — | `https://api.teamgantt.com` | API origin override |
-| `PORT` | — | `3000` | HTTP transport port (or `--port`) |
-| `MCP_ALLOWED_HOSTS` | — | — | Extra allowed Host headers for HTTP transport |
-| `LOG_LEVEL` | — | `info` | `error` \| `warn` \| `info` \| `debug` |
+```bash
+node dist/index.js --http --port 3000
+# MCP endpoint: http://127.0.0.1:3000/mcp   Health: http://127.0.0.1:3000/healthz
+```
 
-## Tools
+The server binds to 127.0.0.1 with DNS-rebinding protection; extra allowed `Host` values go in `MCP_ALLOWED_HOSTS=host1,host2`.
 
-### Projects
+**Multi-tenant:** each MCP session may authenticate with its own TeamGantt token by sending `Authorization: Bearer <personal access token>` on the initialize request — the session is bound to that token. Without the header the server falls back to `TEAMGANTT_API_TOKEN`; with neither, initialization is rejected with 401. (stdio mode always requires the env token.)
+
+## 🧰 Tools
+
+<details>
+<summary><strong>Projects</strong> (6 tools)</summary>
+
 | Tool | Description |
 |---|---|
 | `list_projects` | List projects (status filter, search, pagination) |
@@ -84,7 +91,11 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `update_project` | Update name/status/settings |
 | `archive_project` | Archive (soft-delete) a project |
 
-### Tasks & groups
+</details>
+
+<details>
+<summary><strong>Tasks & groups</strong> (17 tools)</summary>
+
 | Tool | Description |
 |---|---|
 | `list_tasks` | List tasks, filterable by project and date range |
@@ -97,7 +108,11 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `list_task_resources` / `assign_task_resource` / `update_task_assignment` / `remove_task_assignment` | Manage who works on a task and hour allocations |
 | `list_groups` / `create_group` / `get_group` / `update_group` / `delete_group` | Manage the groups that contain tasks |
 
-### Comments & discussions
+</details>
+
+<details>
+<summary><strong>Comments & discussions</strong> (6 tools)</summary>
+
 | Tool | Description |
 |---|---|
 | `list_comments` | Read comments/notes on a task, group, or project |
@@ -106,7 +121,11 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `pin_comment` | Pin/unpin a comment to the top of its list |
 | `list_discussions` | Cross-project discussion inbox with unread/mention filters |
 
-### Time tracking
+</details>
+
+<details>
+<summary><strong>Time tracking</strong> (11 tools)</summary>
+
 | Tool | Description |
 |---|---|
 | `get_timesheets` | Timesheet view: hours per task per date |
@@ -117,10 +136,13 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `punch_in` / `punch_out` | Live time tracking |
 | `update_time_block` / `delete_time_block` | Correct or remove entries |
 
-### People & companies
+</details>
 
-| Tool | Purpose |
-| --- | --- |
+<details>
+<summary><strong>People & companies</strong> (9 tools)</summary>
+
+| Tool | Description |
+|---|---|
 | `get_current_user` | Authenticated user's profile and companies (discover your user/company IDs) |
 | `get_company` / `update_company` | Company details (plan, limits, account holders) and rename |
 | `list_company_users` | All users in a company with permission levels |
@@ -129,32 +151,43 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `update_company_user` / `remove_company_user` | Change permissions/disable, or remove from the company |
 | `list_company_projects` | All projects in one company |
 
-### Resources
+</details>
 
-| Tool | Purpose |
-| --- | --- |
+<details>
+<summary><strong>Resources</strong> (11 tools)</summary>
+
+| Tool | Description |
+|---|---|
 | `get_project_resource_options` | Everything assignable to tasks in a project (users + resources) |
 | `list_project_resources` / `create_project_resource` / `update_project_resource` / `delete_project_resource` | Manage project-specific resources (labels) |
 | `list_company_resources` / `create_company_resource` / `update_company_resource` / `delete_company_resource` | Manage company-wide resources (equipment, rooms) |
 | `add_company_resource_to_project` / `remove_company_resource_from_project` | Control which company resources a project can use |
 
-### Workload
+</details>
 
-| Tool | Purpose |
-| --- | --- |
+<details>
+<summary><strong>Workload</strong> (3 tools)</summary>
+
+| Tool | Description |
+|---|---|
 | `get_user_workload` | Allocated hours per day/week/month for one or more users |
 | `get_unassigned_workload` | Hours on tasks with no assignee |
 | `get_resource_workload` | Allocated hours for company or project resources |
 
-### Reports & webhooks
+</details>
 
-| Tool | Purpose |
-| --- | --- |
+<details>
+<summary><strong>Reports & webhooks</strong> (3 tools)</summary>
+
+| Tool | Description |
+|---|---|
 | `get_project_health` | Task-status breakdown and weighted percent complete per project |
 | `list_webhooks` | Webhook subscriptions created by the current user |
 | `create_webhook` | Subscribe a URL to project task events (the API has no delete endpoint) |
 
-## MCP resources
+</details>
+
+## 📚 MCP resources
 
 Read-only resources under the `teamgantt://` scheme, for clients that browse resources:
 
@@ -165,19 +198,23 @@ Read-only resources under the `teamgantt://` scheme, for clients that browse res
 | `teamgantt://projects/{projectId}` | Full details of one project |
 | `teamgantt://projects/{projectId}/tree` | Group tree with per-group task counts |
 
-## Multi-tenant HTTP auth
+## ⚙️ Configuration
 
-In HTTP mode each MCP session can authenticate with its own TeamGantt token: send it on the
-initialize request as `Authorization: Bearer <personal access token>` and the session is bound
-to it. If the header is absent the server falls back to `TEAMGANTT_API_TOKEN`; with neither,
-initialization is rejected with 401. In stdio mode `TEAMGANTT_API_TOKEN` remains required.
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `TEAMGANTT_API_TOKEN` | stdio only | — | TeamGantt personal access token (in HTTP mode it's the fallback for sessions that don't send their own bearer token) |
+| `TEAMGANTT_BASE_URL` | — | `https://api.teamgantt.com` | API origin override |
+| `PORT` | — | `3000` | HTTP transport port (or `--port`) |
+| `MCP_ALLOWED_HOSTS` | — | — | Extra allowed Host headers for HTTP transport |
+| `LOG_LEVEL` | — | `info` | `error` \| `warn` \| `info` \| `debug` |
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 src/
 ├── index.ts          CLI entry (--stdio default | --http [--port])
 ├── server.ts         Builds the McpServer and registers all tool modules
+├── mcp-resources.ts  Read-only teamgantt:// resources
 ├── config.ts         Env parsing and validation
 ├── client/           Thin TeamGantt HTTP client (auth, retries, typed errors)
 ├── schemas/          Zod input schemas per API domain
@@ -185,28 +222,33 @@ src/
 └── transports/       stdio and Streamable HTTP (session-based) transports
 ```
 
-**Adding a new API domain** (e.g. Comments) is mechanical:
+**Adding a new API domain** is mechanical:
 
-1. Add `src/schemas/comments.ts` with the Zod input shapes.
-2. Add `src/tools/comments.ts` exporting a `ToolModule` that calls `server.registerTool(...)` for each endpoint.
+1. Add `src/schemas/<domain>.ts` with the Zod input shapes.
+2. Add `src/tools/<domain>.ts` exporting a `ToolModule` that calls `server.registerTool(...)` for each endpoint.
 3. Add the module to `TOOL_MODULES` in `src/server.ts`.
 
 Cross-cutting behavior (bearer auth, `429`/`5xx` retry with `Retry-After`, error mapping to `isError` tool results with actionable hints) lives in the shared client and `tools/types.ts` — tool modules stay declarative.
 
 **Response trimming** (`src/tools/trim.ts`): raw TeamGantt responses are enormous — a single task is ~17 KB and a project tree can exceed 4 MB. List tools return compact summaries (measured against a real 2 370-task project: task list 4.7 MB → ~16 KB per page, project tree 4.8 MB → ~19 KB), tree tools return a groups-only skeleton with per-group task counts, and `list_tasks` enforces pagination client-side because the live API has been observed ignoring `per_page`. Detail tools (`get_project`, `get_task`) return the full payload.
 
-## Development
+## 🛠️ Development
 
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # vitest (unit + in-memory MCP integration tests)
+npm test            # vitest (unit + in-memory & HTTP MCP integration tests)
 npm run build       # tsup → dist/
 ```
 
-## Roadmap
+Tests never hit the network: the HTTP client takes an injectable `fetchFn`, and integration tests wire a real MCP client to the real server over in-memory and HTTP transports.
 
-- ~~**M2:** Groups deep-dive + Comments (discussions, pinning)~~ ✅ shipped in v0.3.0
-- ~~**M3:** People — current_user, companies, project/company resources, workload~~ ✅ shipped in v0.4.0
-- ~~**M4:** Reports, Webhooks, MCP resources (`teamgantt://...`), multi-tenant HTTP auth~~ ✅ shipped in v0.5.0
-- **Possible next:** Bookmarks, Custom fields/RACI, boards, baselines, critical path
+## 🗺️ Status
+
+All planned milestones are shipped (v0.5.0): projects/tasks/time tracking → response trimming → comments & discussions → people/resources/workload → reports, webhooks, MCP resources, multi-tenant HTTP auth.
+
+Candidate future domains: bookmarks, custom fields, RACI roles, boards, baselines, critical path.
+
+## 📄 License
+
+[MIT](LICENSE)

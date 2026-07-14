@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Server as HttpServer } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import express, { type Request, type Response } from "express";
@@ -8,19 +9,28 @@ export interface HttpOptions {
   port: number;
   /** Extra Host-header values to accept (DNS-rebinding protection). */
   allowedHosts?: string[];
-  /** Factory — each MCP session gets its own server instance. */
-  createServer: () => McpServer;
+  /**
+   * Factory — each MCP session gets its own server instance bound to the
+   * TeamGantt token that authenticated the session.
+   */
+  createServer: (apiToken: string) => McpServer;
+  /**
+   * Fallback TeamGantt token (from the environment) used when a client
+   * doesn't send its own Authorization header. Without it, sessions that
+   * don't authenticate are rejected with 401 — that's the multi-tenant mode.
+   */
+  defaultToken?: string;
 }
 
-export async function runHttp(options: HttpOptions): Promise<void> {
+function bearerToken(req: Request): string | undefined {
+  const match = /^Bearer\s+(.+)$/i.exec(req.headers.authorization ?? "");
+  return match?.[1]?.trim() || undefined;
+}
+
+export async function runHttp(options: HttpOptions): Promise<HttpServer> {
   const { port, createServer } = options;
-  const allowedHosts = [
-    "127.0.0.1",
-    "localhost",
-    `127.0.0.1:${port}`,
-    `localhost:${port}`,
-    ...(options.allowedHosts ?? []),
-  ];
+  // Mutated after listen with the actual bound port (supports port 0 in tests).
+  const allowedHosts = ["127.0.0.1", "localhost", ...(options.allowedHosts ?? [])];
 
   const app = express();
   app.use(express.json());
@@ -34,6 +44,23 @@ export async function runHttp(options: HttpOptions): Promise<void> {
     if (sessionId && transports[sessionId]) {
       transport = transports[sessionId];
     } else if (!sessionId && isInitializeRequest(req.body)) {
+      // The session is bound to the TeamGantt token presented at initialize:
+      // per-client tokens make the HTTP transport multi-tenant, with the
+      // environment token as a single-tenant fallback.
+      const apiToken = bearerToken(req) ?? options.defaultToken;
+      if (!apiToken) {
+        res.status(401).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32001,
+            message:
+              "Unauthorized: send a TeamGantt personal access token as 'Authorization: Bearer <token>' " +
+              "(or set TEAMGANTT_API_TOKEN on the server for single-tenant use)",
+          },
+          id: null,
+        });
+        return;
+      }
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         enableDnsRebindingProtection: true,
@@ -45,7 +72,7 @@ export async function runHttp(options: HttpOptions): Promise<void> {
       transport.onclose = () => {
         if (transport.sessionId) delete transports[transport.sessionId];
       };
-      const server = createServer();
+      const server = createServer(apiToken);
       await server.connect(transport);
     } else {
       res.status(400).json({
@@ -76,8 +103,12 @@ export async function runHttp(options: HttpOptions): Promise<void> {
     res.json({ status: "ok", sessions: Object.keys(transports).length });
   });
 
-  await new Promise<void>((resolve) => {
-    app.listen(port, "127.0.0.1", () => resolve());
+  const httpServer = await new Promise<HttpServer>((resolve) => {
+    const s = app.listen(port, "127.0.0.1", () => resolve(s));
   });
-  console.error(`teamgantt-mcp listening on http://127.0.0.1:${port}/mcp`);
+  const address = httpServer.address();
+  const actualPort = typeof address === "object" && address ? address.port : port;
+  allowedHosts.push(`127.0.0.1:${actualPort}`, `localhost:${actualPort}`);
+  console.error(`teamgantt-mcp listening on http://127.0.0.1:${actualPort}/mcp`);
+  return httpServer;
 }

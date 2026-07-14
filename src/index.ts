@@ -1,4 +1,4 @@
-import { loadConfig } from "./config.js";
+import { loadConfig, MISSING_TOKEN_MESSAGE } from "./config.js";
 import { TeamGanttClient } from "./client/teamgantt.js";
 import { createServer } from "./server.js";
 import { runStdio } from "./transports/stdio.js";
@@ -15,21 +15,23 @@ function parseArgs(argv: string[]): { http: boolean; port: number } {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const config = loadConfig();
-  const client = new TeamGanttClient({
-    token: config.apiToken,
-    baseUrl: config.baseUrl,
-  });
 
   if (args.http) {
+    // Multi-tenant: sessions authenticate with their own bearer token;
+    // the env token (if set) is the single-tenant fallback.
     const allowedHosts = process.env.MCP_ALLOWED_HOSTS?.split(",")
       .map((h) => h.trim())
       .filter(Boolean);
     await runHttp({
       port: args.port,
       ...(allowedHosts ? { allowedHosts } : {}),
-      createServer: () => createServer(client),
+      ...(config.apiToken ? { defaultToken: config.apiToken } : {}),
+      createServer: (apiToken) =>
+        createServer(new TeamGanttClient({ token: apiToken, baseUrl: config.baseUrl })),
     });
   } else {
+    if (!config.apiToken) throw new Error(MISSING_TOKEN_MESSAGE);
+    const client = new TeamGanttClient({ token: config.apiToken, baseUrl: config.baseUrl });
     await runStdio(createServer(client));
   }
 }

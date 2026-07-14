@@ -55,9 +55,60 @@ describe("teamgantt MCP server", () => {
       "delete_company_resource", "add_company_resource_to_project",
       "remove_company_resource_from_project",
       "get_user_workload", "get_unassigned_workload", "get_resource_workload",
+      "get_project_health", "list_webhooks", "create_webhook",
     ]) {
       expect(names).toContain(expected);
     }
+  });
+
+  it("exposes teamgantt:// MCP resources", async () => {
+    const client = await connectedClient(vi.fn());
+    const { resources } = await client.listResources();
+    const uris = resources.map((r) => r.uri);
+    expect(uris).toContain("teamgantt://current-user");
+    expect(uris).toContain("teamgantt://projects");
+
+    const { resourceTemplates } = await client.listResourceTemplates();
+    const templates = resourceTemplates.map((t) => t.uriTemplate);
+    expect(templates).toContain("teamgantt://projects/{projectId}");
+    expect(templates).toContain("teamgantt://projects/{projectId}/tree");
+  });
+
+  it("reads the current-user resource as trimmed JSON", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse(200, {
+        id: 7,
+        email_address: "me@example.com",
+        first_name: "Jane",
+        last_name: "Doe",
+        preferences: { gantt: {} },
+        companies: [{ id: 1, name: "Acme", plan: {}, subscriptions: [] }],
+      }),
+    );
+    const client = await connectedClient(fetchFn);
+
+    const result = await client.readResource({ uri: "teamgantt://current-user" });
+    const content = result.contents[0] as { mimeType?: string; text: string };
+    expect(content.mimeType).toBe("application/json");
+    const parsed = JSON.parse(content.text);
+    expect(parsed.id).toBe(7);
+    expect(parsed).not.toHaveProperty("preferences");
+    expect(parsed.companies[0]).toEqual({ id: 1, name: "Acme" });
+    expect(String(fetchFn.mock.calls[0]![0])).toContain("/v1/current_user");
+  });
+
+  it("reads the project tree resource through the template", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse(200, [
+        { id: 1, name: "Phase 1", type: "group", children: [{ id: 2, type: "task" }] },
+      ]),
+    );
+    const client = await connectedClient(fetchFn);
+
+    const result = await client.readResource({ uri: "teamgantt://projects/123/tree" });
+    const parsed = JSON.parse((result.contents[0] as { text: string }).text);
+    expect(parsed[0]).toMatchObject({ id: 1, name: "Phase 1", task_count: 1 });
+    expect(String(fetchFn.mock.calls[0]![0])).toContain("/v1/projects/123/children");
   });
 
   it("calls the TeamGantt API and returns trimmed JSON on success", async () => {
@@ -267,6 +318,43 @@ describe("teamgantt MCP server", () => {
     const [url, init] = fetchFn.mock.calls[0]!;
     expect(String(url)).toContain("/v1/projects/5/resources/project/9");
     expect(init.method).toBe("DELETE");
+  });
+
+  it("maps project health ids to the repeated-[] query convention", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, []));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "get_project_health",
+      arguments: { project_ids: [1, 2] },
+    });
+
+    const url = new URL(fetchFn.mock.calls[0]![0]);
+    expect(url.pathname).toBe("/v1/reports/health/project");
+    expect(url.searchParams.getAll("ids[]")).toEqual(["1", "2"]);
+  });
+
+  it("injects target_type when creating webhooks", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { id: "wh_1" }));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "create_webhook",
+      arguments: {
+        target_id: 42,
+        events: ["task_created"],
+        url: "https://example.com/hook",
+      },
+    });
+
+    const [url, init] = fetchFn.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/webhooks");
+    expect(JSON.parse(init.body)).toEqual({
+      target_type: "project",
+      target_id: 42,
+      events: ["task_created"],
+      url: "https://example.com/hook",
+    });
   });
 
   it("returns isError with an actionable message on API failure", async () => {

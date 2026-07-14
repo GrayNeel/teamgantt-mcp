@@ -14,7 +14,8 @@ MCP (Model Context Protocol) server for the TeamGantt API. TypeScript, ESM, Node
 | M1.5 | Response trimming (`src/tools/trim.ts`), client-side pagination guard | ✅ shipped (v0.2.0) |
 | M2 | Comments/notes on tasks/groups/projects (`/v1/{target}/{targetId}/comments` list/create/update/delete/pin, target ∈ `tasks\|groups\|projects`), discussions inbox (`GET /v1/discussions`), group get/update/delete | ✅ shipped (v0.3.0) |
 | M3 | People: `current_user`, companies (`GET/PATCH /v1/companies/{id}`, users CRUD, `/projects`), resources (project + company + `resource_options`), workload (`/v1/workload/{users\|unassigned\|company_resources\|project_resources}`, comma-separated `ids`) | ✅ shipped (v0.4.0) |
-| M4 | Reports (`/v1/reports/project_health`, `/v1/reports/time-tracking`), webhooks, MCP resources (`teamgantt://…`), multi-tenant HTTP auth | ⬜ next |
+| M4 | Reports (`GET /v1/reports/health/project` — the modern endpoint; legacy `project_health` embeds full projects, beta `time-tracking` 404s live), webhooks (list/create only — API has no delete), MCP resources (`teamgantt://…` in `src/mcp-resources.ts`), multi-tenant HTTP auth (per-session bearer at initialize, env token fallback, 401 otherwise; stdio still requires the env token) | ✅ shipped (v0.5.0) |
+| M5? | Candidates: bookmarks, custom fields, RACI, boards, baselines, critical path | ⬜ unplanned |
 
 When starting a milestone: extract the endpoint schemas from the embedded OpenAPI spec first (see "TeamGantt API source of truth"), sample the real responses if a token is available, then follow the 3-step domain recipe. Bump the version in both `package.json` and `SERVER_VERSION` in `src/server.ts`, and update this table plus the README tool catalog when shipping.
 
@@ -41,7 +42,7 @@ The design goal is that **adding a new TeamGantt API domain is mechanical**: one
 - `src/tools/types.ts` — `ToolModule` type plus the `run()` wrapper every tool handler uses: it converts thrown `TeamGanttApiError`s into `isError: true` tool results with status-specific hints. Tool handlers must never let an API error escape as an exception.
 - `src/tools/trim.ts` — response trimming. Real responses are huge (a task is ~17 KB; one real project tree measured 4.8 MB), so **every list/tree tool must trim**: list tools return per-domain summaries, tree tools a groups-only skeleton with `task_count`, and `list_tasks` paginates client-side because the live API ignores `per_page` (verified — it returned all 2 370 tasks). Detail tools (`get_project`, `get_task`) stay full. When adding a domain, sample the real response first and add a trimmer + fixture test in `tests/trim.test.ts`.
 
-The flow: `src/index.ts` (CLI arg parsing) → `src/config.ts` (env validation, fails fast without `TEAMGANTT_API_TOKEN`) → `src/server.ts` (`createServer()` iterates `TOOL_MODULES`) → `src/transports/{stdio,http}.ts`. The HTTP transport is stateful (session map keyed by `Mcp-Session-Id`, one `McpServer` instance per session via the `createServer` factory) with DNS-rebinding protection; stdio logging must go to **stderr only** — stdout is the protocol channel.
+The flow: `src/index.ts` (CLI arg parsing) → `src/config.ts` (env validation; `TEAMGANTT_API_TOKEN` is required for stdio, optional for HTTP) → `src/server.ts` (`createServer(client)` iterates `TOOL_MODULES`, then `registerMcpResources`) → `src/transports/{stdio,http}.ts`. The HTTP transport is stateful (session map keyed by `Mcp-Session-Id`, one `McpServer` per session) and **multi-tenant**: the factory is `createServer(apiToken)`, the token comes from the `Authorization: Bearer` header on the initialize request (env token as fallback, 401 with neither). DNS-rebinding protection is on; stdio logging must go to **stderr only** — stdout is the protocol channel. Read-only MCP resources (`teamgantt://current-user`, `teamgantt://projects[/{id}[/tree]]`) live in `src/mcp-resources.ts` and reuse the same trimmers.
 
 ### Adding a new API domain (e.g. Comments for M2)
 
@@ -63,6 +64,8 @@ Non-obvious API semantics already baked into the tools:
 - Workload endpoints (`/v1/workload/*`) take **comma-separated** `ids`/`project_ids` strings, not the repeated-`[]` array convention used elsewhere. Real entries report `tasks_total`/`hours_total`/`tasks_remaining`/`hours_remaining` per date (the spec's `hours`+`tasks` shape was not observed live).
 - Project resources: DELETE exists only on the legacy `/v1/projects/{id}/resources/project/{resourceId}` route; PATCH uses `/v1/projects/{id}/resources/{resourceId}`. Removing a company resource from a project goes through `/v1/projects/{id}/company_resource_options/{optionId}` (the link id returned when adding, not the resource id).
 - The spec wraps many company responses in `{data: …}` but the live API returns them unwrapped (verified on `/companies/{id}` and `/companies/{id}/users`) — trimmers handle both.
+- Reports: use `GET /v1/reports/health/project` (compact, ~85 B/project). The legacy `/v1/reports/project_health` embeds full project objects (~14 KB each); the spec's beta `/v1/reports/time-tracking` returns 404 on the live API (all path variants probed, July 2026) — don't build a tool on it.
+- Webhooks: `/v1/webhooks` has GET and POST only; there is no delete/update endpoint. `target_type` must be `"project"` (the only supported value) — the create tool injects it.
 
 ## Testing conventions
 

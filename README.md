@@ -66,7 +66,7 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `TEAMGANTT_API_TOKEN` | ✅ | — | TeamGantt personal access token |
+| `TEAMGANTT_API_TOKEN` | stdio only | — | TeamGantt personal access token (in HTTP mode it's the fallback for sessions that don't send their own bearer token) |
 | `TEAMGANTT_BASE_URL` | — | `https://api.teamgantt.com` | API origin override |
 | `PORT` | — | `3000` | HTTP transport port (or `--port`) |
 | `MCP_ALLOWED_HOSTS` | — | — | Extra allowed Host headers for HTTP transport |
@@ -146,6 +146,32 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `get_unassigned_workload` | Hours on tasks with no assignee |
 | `get_resource_workload` | Allocated hours for company or project resources |
 
+### Reports & webhooks
+
+| Tool | Purpose |
+| --- | --- |
+| `get_project_health` | Task-status breakdown and weighted percent complete per project |
+| `list_webhooks` | Webhook subscriptions created by the current user |
+| `create_webhook` | Subscribe a URL to project task events (the API has no delete endpoint) |
+
+## MCP resources
+
+Read-only resources under the `teamgantt://` scheme, for clients that browse resources:
+
+| URI | Content |
+| --- | --- |
+| `teamgantt://current-user` | Profile and companies of the authenticated user |
+| `teamgantt://projects` | Compact list of active projects |
+| `teamgantt://projects/{projectId}` | Full details of one project |
+| `teamgantt://projects/{projectId}/tree` | Group tree with per-group task counts |
+
+## Multi-tenant HTTP auth
+
+In HTTP mode each MCP session can authenticate with its own TeamGantt token: send it on the
+initialize request as `Authorization: Bearer <personal access token>` and the session is bound
+to it. If the header is absent the server falls back to `TEAMGANTT_API_TOKEN`; with neither,
+initialization is rejected with 401. In stdio mode `TEAMGANTT_API_TOKEN` remains required.
+
 ## Architecture
 
 ```
@@ -182,4 +208,5 @@ npm run build       # tsup → dist/
 
 - ~~**M2:** Groups deep-dive + Comments (discussions, pinning)~~ ✅ shipped in v0.3.0
 - ~~**M3:** People — current_user, companies, project/company resources, workload~~ ✅ shipped in v0.4.0
-- **M4:** Reports, Bookmarks, Webhooks, Custom fields/RACI; MCP resources (`teamgantt://...`); multi-tenant HTTP auth
+- ~~**M4:** Reports, Webhooks, MCP resources (`teamgantt://...`), multi-tenant HTTP auth~~ ✅ shipped in v0.5.0
+- **Possible next:** Bookmarks, Custom fields/RACI, boards, baselines, critical path

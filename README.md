@@ -1,6 +1,10 @@
-# TeamGantt MCP Server
+<div align="center">
 
-**Give your AI assistant full control of TeamGantt** — plan projects, build task trees with dependencies, assign people, balance workload, and track time, all through the [Model Context Protocol](https://modelcontextprotocol.io).
+<img src="assets/logo.png" alt="TeamGantt MCP Server" width="500">
+
+**Give your AI assistant full control of TeamGantt.**
+
+Plan projects, build task trees with dependencies, assign people, balance workload, and track time — through the [Model Context Protocol](https://modelcontextprotocol.io). **66 tools across 9 domains**, plus browsable `teamgantt://` resources, dual transports, and multi-tenant HTTP auth.
 
 [![CI](https://github.com/GrayNeel/teamgantt-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/GrayNeel/teamgantt-mcp/actions/workflows/ci.yml)
 [![Latest tag](https://img.shields.io/github/v/tag/GrayNeel/teamgantt-mcp?label=version&color=blue)](https://github.com/GrayNeel/teamgantt-mcp/tags)
@@ -9,7 +13,11 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.x-8A2BE2)](https://github.com/modelcontextprotocol/typescript-sdk)
 
-An MCP server for the [TeamGantt API](https://api-docs.teamgantt.com): **66 tools across 9 domains**, plus browsable `teamgantt://` resources, dual transports, and multi-tenant HTTP auth.
+[**Features**](#-features) · [**Quick start**](#-quick-start) · [**Tools**](#-tools) · [**MCP resources**](#-mcp-resources) · [**Configuration**](#-configuration) · [**Architecture**](#-architecture) · [**Roadmap**](#-roadmap)
+
+</div>
+
+---
 
 ## ✨ Features
 
@@ -198,7 +206,7 @@ Read-only resources under the `teamgantt://` scheme, for clients that browse res
 | `teamgantt://projects/{projectId}` | Full details of one project |
 | `teamgantt://projects/{projectId}/tree` | Group tree with per-group task counts |
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -208,7 +216,7 @@ Read-only resources under the `teamgantt://` scheme, for clients that browse res
 | `MCP_ALLOWED_HOSTS` | — | — | Extra allowed Host headers for HTTP transport |
 | `LOG_LEVEL` | — | `info` | `error` \| `warn` \| `info` \| `debug` |
 
-## 🏗️ Architecture
+## 🧱 Architecture
 
 ```
 src/
@@ -232,7 +240,7 @@ Cross-cutting behavior (bearer auth, `429`/`5xx` retry with `Retry-After`, error
 
 **Response trimming** (`src/tools/trim.ts`): raw TeamGantt responses are enormous — a single task is ~17 KB and a project tree can exceed 4 MB. List tools return compact summaries (measured against a real 2 370-task project: task list 4.7 MB → ~16 KB per page, project tree 4.8 MB → ~19 KB), tree tools return a groups-only skeleton with per-group task counts, and `list_tasks` enforces pagination client-side because the live API has been observed ignoring `per_page`. Detail tools (`get_project`, `get_task`) return the full payload.
 
-## 🛠️ Development
+## 🧪 Development
 
 ```bash
 npm run typecheck   # tsc --noEmit
@@ -243,7 +251,7 @@ npm run build       # tsup → dist/
 
 Tests never hit the network: the HTTP client takes an injectable `fetchFn`, and integration tests wire a real MCP client to the real server over in-memory and HTTP transports.
 
-## 🗺️ Roadmap
+## 🧭 Roadmap
 
 Milestones **M1–M4 are shipped** (v0.5.0): projects/tasks/time tracking → response trimming → comments & discussions → people/resources/workload → reports, webhooks, MCP resources, multi-tenant HTTP auth.
 

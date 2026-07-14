@@ -13,8 +13,8 @@ MCP (Model Context Protocol) server for the TeamGantt API. TypeScript, ESM, Node
 | M1 | Projects, Groups (list/create), Tasks + dependencies + assignments, Time tracking | ✅ shipped (tag `v0.1.0`) |
 | M1.5 | Response trimming (`src/tools/trim.ts`), client-side pagination guard | ✅ shipped (v0.2.0) |
 | M2 | Comments/notes on tasks/groups/projects (`/v1/{target}/{targetId}/comments` list/create/update/delete/pin, target ∈ `tasks\|groups\|projects`), discussions inbox (`GET /v1/discussions`), group get/update/delete | ✅ shipped (v0.3.0) |
-| M3 | People: `current_user`, companies, project/company resources, workload/availability | ⬜ next |
-| M4 | Reports (`/v1/reports/project_health`, `/v1/reports/time-tracking`), webhooks, MCP resources (`teamgantt://…`), multi-tenant HTTP auth | ⬜ |
+| M3 | People: `current_user`, companies (`GET/PATCH /v1/companies/{id}`, users CRUD, `/projects`), resources (project + company + `resource_options`), workload (`/v1/workload/{users\|unassigned\|company_resources\|project_resources}`, comma-separated `ids`) | ✅ shipped (v0.4.0) |
+| M4 | Reports (`/v1/reports/project_health`, `/v1/reports/time-tracking`), webhooks, MCP resources (`teamgantt://…`), multi-tenant HTTP auth | ⬜ next |
 
 When starting a milestone: extract the endpoint schemas from the embedded OpenAPI spec first (see "TeamGantt API source of truth"), sample the real responses if a token is available, then follow the 3-step domain recipe. Bump the version in both `package.json` and `SERVER_VERSION` in `src/server.ts`, and update this table plus the README tool catalog when shipping.
 
@@ -60,6 +60,9 @@ Non-obvious API semantics already baked into the tools:
 - Punch-in is `POST /v1/times/punch-in` with `task_id` in the body; punch-out is `POST /v1/times/{timeId}/punch-out` (time-block ID, not task ID).
 - Dependencies: body is `{to_task: {id}, type, lead_lag_time}` where `to_task` is the predecessor of the path task.
 - Dates are `YYYY-MM-DD`; time-block times are ISO 8601 datetimes.
+- Workload endpoints (`/v1/workload/*`) take **comma-separated** `ids`/`project_ids` strings, not the repeated-`[]` array convention used elsewhere. Real entries report `tasks_total`/`hours_total`/`tasks_remaining`/`hours_remaining` per date (the spec's `hours`+`tasks` shape was not observed live).
+- Project resources: DELETE exists only on the legacy `/v1/projects/{id}/resources/project/{resourceId}` route; PATCH uses `/v1/projects/{id}/resources/{resourceId}`. Removing a company resource from a project goes through `/v1/projects/{id}/company_resource_options/{optionId}` (the link id returned when adding, not the resource id).
+- The spec wraps many company responses in `{data: …}` but the live API returns them unwrapped (verified on `/companies/{id}` and `/companies/{id}/users`) — trimmers handle both.
 
 ## Testing conventions
 

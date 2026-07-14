@@ -117,6 +117,35 @@ TEAMGANTT_API_TOKEN=your-token npx @modelcontextprotocol/inspector node dist/ind
 | `punch_in` / `punch_out` | Live time tracking |
 | `update_time_block` / `delete_time_block` | Correct or remove entries |
 
+### People & companies
+
+| Tool | Purpose |
+| --- | --- |
+| `get_current_user` | Authenticated user's profile and companies (discover your user/company IDs) |
+| `get_company` / `update_company` | Company details (plan, limits, account holders) and rename |
+| `list_company_users` | All users in a company with permission levels |
+| `get_company_user` | Single company user details |
+| `invite_company_user` | Invite or add a user to the company |
+| `update_company_user` / `remove_company_user` | Change permissions/disable, or remove from the company |
+| `list_company_projects` | All projects in one company |
+
+### Resources
+
+| Tool | Purpose |
+| --- | --- |
+| `get_project_resource_options` | Everything assignable to tasks in a project (users + resources) |
+| `list_project_resources` / `create_project_resource` / `update_project_resource` / `delete_project_resource` | Manage project-specific resources (labels) |
+| `list_company_resources` / `create_company_resource` / `update_company_resource` / `delete_company_resource` | Manage company-wide resources (equipment, rooms) |
+| `add_company_resource_to_project` / `remove_company_resource_from_project` | Control which company resources a project can use |
+
+### Workload
+
+| Tool | Purpose |
+| --- | --- |
+| `get_user_workload` | Allocated hours per day/week/month for one or more users |
+| `get_unassigned_workload` | Hours on tasks with no assignee |
+| `get_resource_workload` | Allocated hours for company or project resources |
+
 ## Architecture
 
 ```
@@ -152,5 +181,5 @@ npm run build       # tsup → dist/
 ## Roadmap
 
 - ~~**M2:** Groups deep-dive + Comments (discussions, pinning)~~ ✅ shipped in v0.3.0
-- **M3:** People — current_user, companies, project/company resources, workload
+- ~~**M3:** People — current_user, companies, project/company resources, workload~~ ✅ shipped in v0.4.0
 - **M4:** Reports, Bookmarks, Webhooks, Custom fields/RACI; MCP resources (`teamgantt://...`); multi-tenant HTTP auth

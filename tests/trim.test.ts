@@ -3,11 +3,16 @@ import {
   paginate,
   summarizeTree,
   trimComments,
+  trimCompanyProjects,
+  trimCompanyUsers,
+  trimCurrentUser,
   trimDiscussions,
   trimGroupDetail,
   trimProjectList,
+  trimResourceOptions,
   trimTask,
   trimTimesheets,
+  trimWorkload,
 } from "../src/tools/trim.js";
 
 // Fixtures mirror real API responses observed against the live API (July 2026).
@@ -290,6 +295,167 @@ describe("trimGroupDetail", () => {
       end_date: "2026-07-10",
       percent_complete: 40,
     });
+  });
+});
+
+// Mirrors the real GET /v1/current_user (July 2026): companies embed the full
+// company object; preference/notification blobs dominate the payload.
+const fullCompany = {
+  id: 741198,
+  name: "Acme",
+  current_user_permissions: "account_holder",
+  plan_name: "Advanced",
+  is_time_tracking_enabled: true,
+  is_time_estimating_enabled: true,
+  // noise:
+  account_holders: [fullUser], features: ["a", "b"], plan: { limitations: {} },
+  subscriptions: [{ customer_id: "cus_x" }], addons: [], sso: null,
+  billing_above: "x", city: "Rome", storage_used: "1GB",
+};
+
+describe("trimCurrentUser", () => {
+  it("keeps the profile and reduces companies to summaries", () => {
+    const trimmed = trimCurrentUser({
+      id: 13254063,
+      email_address: "someone@example.com",
+      first_name: "Jane",
+      last_name: "Doe",
+      time_zone: "+02:00",
+      status: "active",
+      created_at: "2021-08-01",
+      companies: [fullCompany],
+      // noise:
+      preferences: { gantt: {} }, preferences_new: {}, notifications: {},
+      mobile_notifications: {}, integrations: [], integrationsNew: {},
+      welcome_survey: null, email_notification_settings: {}, pic: "https://x",
+    }) as Record<string, unknown>;
+    expect(trimmed.id).toBe(13254063);
+    expect(trimmed.email_address).toBe("someone@example.com");
+    expect(trimmed.companies).toEqual([
+      {
+        id: 741198,
+        name: "Acme",
+        current_user_permissions: "account_holder",
+        plan_name: "Advanced",
+        is_time_tracking_enabled: true,
+        is_time_estimating_enabled: true,
+      },
+    ]);
+    for (const dropped of ["preferences", "notifications", "integrations", "pic"]) {
+      expect(trimmed).not.toHaveProperty(dropped);
+    }
+  });
+});
+
+describe("trimCompanyUsers", () => {
+  it("keeps permission fields and drops pic/timestamps", () => {
+    const trimmed = trimCompanyUsers([
+      {
+        id: 13231984,
+        email_address: "ac@example.com",
+        first_name: "Alessandro",
+        last_name: "Colucci",
+        permissions: "basic",
+        status: "active",
+        is_disabled: false,
+        can_invite: true,
+        created_at: "2021-07-15T10:54:29Z",
+        pic: "https://api.teamgantt.com/assets/user_pic/?text=AC",
+      },
+    ]) as Array<Record<string, unknown>>;
+    expect(trimmed[0]).toEqual({
+      id: 13231984,
+      email_address: "ac@example.com",
+      first_name: "Alessandro",
+      last_name: "Colucci",
+      permissions: "basic",
+      status: "active",
+      is_disabled: false,
+      can_invite: true,
+    });
+  });
+
+  it("unwraps a data envelope if present", () => {
+    const trimmed = trimCompanyUsers({ data: [{ id: 1, pic: "x" }] }) as Array<
+      Record<string, unknown>
+    >;
+    expect(trimmed).toEqual([{ id: 1 }]);
+  });
+});
+
+describe("trimCompanyProjects", () => {
+  it("applies project summaries inside the data envelope", () => {
+    const trimmed = trimCompanyProjects({
+      data: [{ id: 2254439, name: "NE_CIAM", status: "Active", accesses: [], boards: [] }],
+    }) as { data: Array<Record<string, unknown>> };
+    expect(trimmed.data[0]).toEqual({ id: 2254439, name: "NE_CIAM", status: "Active" });
+  });
+});
+
+describe("trimResourceOptions", () => {
+  it("reduces user_resources and passes other resource types through", () => {
+    const trimmed = trimResourceOptions({
+      user_resources: [{ ...fullUser, permissions: "basic" }],
+      company_resources: [{ id: 3, company_id: 741198, name: "Crane" }],
+      project_resources: [{ id: 4, project_id: 1, name: "Rig", color: "blue2" }],
+    }) as Record<string, Array<Record<string, unknown>>>;
+    expect(trimmed.user_resources![0]).toEqual({
+      id: 13254063,
+      email_address: "someone@example.com",
+      first_name: "Jane",
+      last_name: "Doe",
+      permissions: "basic",
+      status: "active",
+    });
+    expect(trimmed.company_resources![0]!.name).toBe("Crane");
+    expect(trimmed.project_resources![0]!.color).toBe("blue2");
+  });
+});
+
+describe("trimWorkload", () => {
+  // Real per-date entries (July 2026): tasks_total/hours_total/…_remaining.
+  const series = {
+    type: "user",
+    type_id: 13254063,
+    data: [
+      {
+        date: "2026-07-14",
+        tasks_total: 13,
+        hours_total: 7.24,
+        tasks_remaining: 13,
+        hours_remaining: 7.24,
+        tasks: [fullTask],
+      },
+    ],
+  };
+
+  it("keeps per-date aggregates and collapses embedded tasks", () => {
+    const [trimmed] = trimWorkload([series]) as Array<{
+      type: string;
+      data: Array<Record<string, unknown>>;
+    }>;
+    expect(trimmed!.type).toBe("user");
+    expect(trimmed!.data[0]).toMatchObject({ date: "2026-07-14", hours_total: 7.24 });
+    expect(trimmed!.data[0]!.tasks).toEqual([
+      {
+        id: 113485408,
+        name: "Configure proxy",
+        type: "task",
+        start_date: "2026-07-01",
+        end_date: "2026-07-10",
+        percent_complete: 40,
+      },
+    ]);
+  });
+
+  it("handles the single-object shape of /workload/unassigned", () => {
+    const trimmed = trimWorkload({
+      type: "unassigned",
+      type_id: "",
+      data: [{ date: "2026-07-13", tasks_total: 1, hours_total: 4, extraneous: {} }],
+    }) as { type: string; data: Array<Record<string, unknown>> };
+    expect(trimmed.type).toBe("unassigned");
+    expect(trimmed.data[0]).toEqual({ date: "2026-07-13", tasks_total: 1, hours_total: 4 });
   });
 });
 

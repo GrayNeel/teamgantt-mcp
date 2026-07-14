@@ -191,6 +191,100 @@ export function trimTimesheets(response: unknown): unknown {
   return Array.isArray(response) ? response.map(trimTimesheetEntry) : response;
 }
 
+const COMPANY_SUMMARY_KEYS = [
+  "id", "name", "current_user_permissions", "plan_name",
+  "is_time_tracking_enabled", "is_time_estimating_enabled",
+] as const;
+
+const CURRENT_USER_KEYS = [
+  "id", "email_address", "first_name", "last_name", "time_zone",
+  "today_date", "status", "created_at",
+] as const;
+
+/**
+ * GET /v1/current_user is ~5 KB: the companies array embeds full company
+ * objects (plan, limits, subscriptions) and the rest is preference blobs.
+ * Keep the profile plus a per-company summary — enough to discover the
+ * user id and company id that other tools need.
+ */
+export function trimCurrentUser(user: unknown): unknown {
+  if (!isDict(user)) return user;
+  const out = pick(user, CURRENT_USER_KEYS);
+  if (Array.isArray(user.companies)) {
+    out.companies = user.companies.map((c) =>
+      isDict(c) ? pick(c, COMPANY_SUMMARY_KEYS) : c,
+    );
+  }
+  return out;
+}
+
+const COMPANY_USER_KEYS = [
+  "id", "email_address", "first_name", "last_name", "permissions",
+  "status", "is_disabled", "can_invite",
+] as const;
+
+/** GET /v1/companies/{id}/users returns a bare array; drop pic URLs and timestamps. */
+export function trimCompanyUsers(response: unknown): unknown {
+  const users = Array.isArray(response)
+    ? response
+    : isDict(response) && Array.isArray(response.data)
+      ? response.data
+      : null;
+  if (!users) return response;
+  return users.map((u) => (isDict(u) ? pick(u, COMPANY_USER_KEYS) : u));
+}
+
+/** GET /v1/companies/{id}/projects — same project summaries as list_projects. */
+export function trimCompanyProjects(response: unknown): unknown {
+  if (Array.isArray(response)) return response.map(trimProject);
+  if (isDict(response) && Array.isArray(response.data)) {
+    return { ...response, data: response.data.map(trimProject) };
+  }
+  return response;
+}
+
+/**
+ * GET /v1/projects/{id}/resource_options: user_resources embed full user
+ * objects — reduce them to assignment-relevant fields. Company and project
+ * resources are already compact.
+ */
+export function trimResourceOptions(response: unknown): unknown {
+  if (!isDict(response) || !Array.isArray(response.user_resources)) return response;
+  return {
+    ...response,
+    user_resources: response.user_resources.map((u) =>
+      isDict(u) ? pick(u, COMPANY_USER_KEYS) : u,
+    ),
+  };
+}
+
+const WORKLOAD_ENTRY_KEYS = [
+  "date", "hours", "tasks_total", "hours_total", "tasks_remaining", "hours_remaining",
+] as const;
+
+function trimWorkloadSeries(series: unknown): unknown {
+  if (!isDict(series)) return series;
+  const out: Dict = { type: series.type, type_id: series.type_id };
+  if (Array.isArray(series.data)) {
+    out.data = series.data.map((entry) => {
+      if (!isDict(entry)) return entry;
+      const day = pick(entry, WORKLOAD_ENTRY_KEYS);
+      if (Array.isArray(entry.tasks) && entry.tasks.length > 0) {
+        day.tasks = entry.tasks.map((t) => (isDict(t) ? pick(t, TASK_LITE_KEYS) : t));
+      }
+      return day;
+    });
+  }
+  return out;
+}
+
+/** Workload responses are per-date aggregates; embedded task lists collapse to minimal tuples. */
+export function trimWorkload(response: unknown): unknown {
+  return Array.isArray(response)
+    ? response.map(trimWorkloadSeries)
+    : trimWorkloadSeries(response);
+}
+
 export interface PageResult {
   total: number;
   page: number;

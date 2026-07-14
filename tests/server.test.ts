@@ -46,6 +46,15 @@ describe("teamgantt MCP server", () => {
       "get_group", "update_group", "delete_group",
       "list_comments", "create_comment", "update_comment", "delete_comment",
       "pin_comment", "list_discussions",
+      "get_current_user", "get_company", "update_company", "list_company_users",
+      "get_company_user", "invite_company_user", "update_company_user",
+      "remove_company_user", "list_company_projects",
+      "get_project_resource_options", "list_project_resources",
+      "create_project_resource", "update_project_resource", "delete_project_resource",
+      "list_company_resources", "create_company_resource", "update_company_resource",
+      "delete_company_resource", "add_company_resource_to_project",
+      "remove_company_resource_from_project",
+      "get_user_workload", "get_unassigned_workload", "get_resource_workload",
     ]) {
       expect(names).toContain(expected);
     }
@@ -185,6 +194,79 @@ describe("teamgantt MCP server", () => {
     expect(url.searchParams.get("limit")).toBe("50");
     expect(url.searchParams.get("is_unread")).toBe("true");
     expect(url.searchParams.getAll("project_id[]")).toEqual(["1", "2"]);
+  });
+
+  it("joins workload ids into comma-separated query params", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, []));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "get_user_workload",
+      arguments: {
+        user_ids: [11, 22],
+        project_ids: [3, 4],
+        group_by: "week",
+        start_date: "2026-07-14",
+        end_date: "2026-07-28",
+      },
+    });
+
+    const url = new URL(fetchFn.mock.calls[0]![0]);
+    expect(url.pathname).toBe("/v1/workload/users");
+    expect(url.searchParams.get("ids")).toBe("11,22");
+    expect(url.searchParams.get("project_ids")).toBe("3,4");
+    expect(url.searchParams.get("group_by")).toBe("week");
+  });
+
+  it("routes get_resource_workload by resource_type", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, []));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "get_resource_workload",
+      arguments: { resource_type: "company", resource_ids: [7] },
+    });
+
+    const url = new URL(fetchFn.mock.calls[0]![0]);
+    expect(url.pathname).toBe("/v1/workload/company_resources");
+    expect(url.searchParams.get("ids")).toBe("7");
+  });
+
+  it("posts company user invites without the path params in the body", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { data: { id: 1 } }));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "invite_company_user",
+      arguments: {
+        company_id: 741198,
+        email_address: "new@example.com",
+        permissions: "basic",
+        send_invite: false,
+      },
+    });
+
+    const [url, init] = fetchFn.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/companies/741198/users");
+    expect(JSON.parse(init.body)).toEqual({
+      email_address: "new@example.com",
+      permissions: "basic",
+      send_invite: false,
+    });
+  });
+
+  it("deletes project resources via the resources/project route", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "delete_project_resource",
+      arguments: { project_id: 5, resource_id: 9 },
+    });
+
+    const [url, init] = fetchFn.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/projects/5/resources/project/9");
+    expect(init.method).toBe("DELETE");
   });
 
   it("returns isError with an actionable message on API failure", async () => {

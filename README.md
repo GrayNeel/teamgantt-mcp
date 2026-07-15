@@ -140,7 +140,7 @@ Point any HTTP MCP client at `http://localhost:3000/mcp`. In multi-tenant mode (
 | `delete_task` | Permanently delete a task |
 | `add_task_dependency` / `remove_task_dependency` | Manage FS/SS/FF/SF dependencies with lead/lag |
 | `list_task_resources` / `assign_task_resource` / `update_task_assignment` / `remove_task_assignment` | Manage who works on a task and hour allocations |
-| `list_groups` / `create_group` / `get_group` / `update_group` / `delete_group` | Manage the groups that contain tasks |
+| `list_groups` / `create_group` / `get_group` / `update_group` / `delete_group` | Manage the groups that contain tasks (`update_group` also moves a group under another group or into a different project) |
 
 </details>
 

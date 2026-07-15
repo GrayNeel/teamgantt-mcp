@@ -235,10 +235,11 @@ export const registerTaskTools: ToolModule = (server, client) => {
   server.registerTool(
     "update_group",
     {
-      title: "Update group",
+      title: "Update / move group",
       description:
-        "Rename a group, move it under a different parent, or change its sort order. " +
-        "Partial update — send only the fields to change.",
+        "Rename a group, change its sort order, or move it. Move it under a different parent group " +
+        "with parent_group_id (or null to make it root-level), or into a different project with " +
+        "project_id. Partial update — send only the fields to change.",
       inputSchema: schema.updateGroup,
     },
     async ({ group_id, ...body }) => run(() => client.patch(`/v1/groups/${group_id}`, body)),

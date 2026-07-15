@@ -57,6 +57,7 @@ The docs site (https://api-docs.teamgantt.com) embeds the **complete OpenAPI 3.0
 Non-obvious API semantics already baked into the tools:
 
 - Tasks **require `parent_group_id`** — tasks live inside groups. That's why `list_groups` / `create_group` / `get_project_children` exist; keep tool descriptions steering models through empty-project → create_group → create_task.
+- Moving a group is done through `update_group` (`PATCH /v1/groups/{id}`), not a dedicated tool — mirroring how `update_task` moves a task. The body accepts `project_id` (move the group into a different project), `parent_group_id` (nest under another group, or `null` for root-level), `name`, `sort`, and `is_collapsed`. Not verified live: the only tokens sampled so far were read-only (writes 403), so the move path is confirmed against the spec + a call-shape unit test, not a real round-trip.
 - Timesheet hours: `PUT /v1/timesheets/{taskId}/{YYYY-MM-DD}` (the task ID doubles as the "timesheet ID").
 - Punch-in is `POST /v1/times/punch-in` with `task_id` in the body; punch-out is `POST /v1/times/{timeId}/punch-out` (time-block ID, not task ID).
 - Dependencies: body is `{to_task: {id}, type, lead_lag_time}` where `to_task` is the predecessor of the path task.

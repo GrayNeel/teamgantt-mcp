@@ -164,10 +164,23 @@ export const getGroup = {
 export const updateGroup = {
   group_id: id.describe("Unique identifier of the group to update"),
   name: z.string().min(1).max(255).optional().describe("Updated group name"),
-  parent_group_id: id
+  project_id: id
     .optional()
-    .describe("Move the group under a different parent group"),
+    .describe(
+      "Move the group into a different project (pass the target project's ID). " +
+        "Combine with parent_group_id to also nest it under a group in that project",
+    ),
+  parent_group_id: id
+    .nullable()
+    .optional()
+    .describe(
+      "Move the group under a different parent group, or pass null to make it a root-level group",
+    ),
   sort: z.number().int().optional().describe("Updated sort order"),
+  is_collapsed: z
+    .boolean()
+    .optional()
+    .describe("Collapse or expand the group in the current user's view"),
 };
 
 export const deleteGroup = {

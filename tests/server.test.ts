@@ -195,6 +195,21 @@ describe("teamgantt MCP server", () => {
     expect(JSON.parse(init.body)).toEqual({ hours: 4 });
   });
 
+  it("moves a group across projects via update_group", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { id: 9969981 }));
+    const client = await connectedClient(fetchFn);
+
+    await client.callTool({
+      name: "update_group",
+      arguments: { group_id: 9969981, project_id: 234567, parent_group_id: null },
+    });
+
+    const [url, init] = fetchFn.mock.calls[0]!;
+    expect(String(url)).toContain("/v1/groups/9969981");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ project_id: 234567, parent_group_id: null });
+  });
+
   it("builds comment paths from target and target_id", async () => {
     const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { id: 7 }));
     const client = await connectedClient(fetchFn);

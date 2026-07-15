@@ -27,9 +27,9 @@ Plan projects, build task trees with dependencies, assign people, balance worklo
 - 📚 **MCP resources** — browse `teamgantt://projects`, `teamgantt://projects/{id}/tree`, and `teamgantt://current-user` from resource-aware clients.
 - 🔌 **Two transports** — stdio for local clients (Claude Desktop, Claude Code, Cursor) and Streamable HTTP with session management, DNS-rebinding protection, and a `/healthz` probe.
 - 🐳 **Runs anywhere** — one-command Docker Compose deployment; a small multi-stage, non-root `node:22-alpine` image exposes the HTTP server as a container.
-- 🏢 **Multi-tenant HTTP auth** — each HTTP session can bring its own TeamGantt token via `Authorization: Bearer`; a server-side env token works as single-tenant fallback.
+- 🏢 **Multi-tenant HTTP auth** — each HTTP session can bring its own TeamGantt token via `Authorization: Bearer`; a server-side env token works as single-tenant fallback. Optionally gate the endpoint with a shared `MCP_API_KEY`.
 - ♻️ **Resilient client** — automatic retry on 429/5xx honoring `Retry-After`, and API errors surface as structured tool results with actionable hints instead of crashes.
-- ✅ **Strict TypeScript, fully tested** — 46 tests including real client↔server MCP integration over in-memory and HTTP transports. No network in tests.
+- ✅ **Strict TypeScript, fully tested** — 51 tests including real client↔server MCP integration over in-memory and HTTP transports. No network in tests.
 
 ## 🚀 Quick start
 
@@ -86,6 +86,8 @@ The server binds to 127.0.0.1 by default with DNS-rebinding protection; set `HOS
 
 **Multi-tenant:** each MCP session may authenticate with its own TeamGantt token by sending `Authorization: Bearer <personal access token>` on the initialize request — the session is bound to that token. Without the header the server falls back to `TEAMGANTT_API_TOKEN`; with neither, initialization is rejected with 401. (stdio mode always requires the env token.)
 
+**Optional API-key protection:** set `MCP_API_KEY` to gate the endpoint with a shared secret so `/mcp` isn't publicly usable. When set, every request must present the key — as `X-API-Key: <key>` or `Authorization: Bearer <key>` — or it's rejected with 401. This pairs naturally with a single shared `TEAMGANTT_API_TOKEN`: clients just send the key (via either header) and the server uses the env token for TeamGantt. Multi-tenant still works too — send the key as `X-API-Key` and a per-session token as `Authorization: Bearer`. `/healthz` stays open for probes. Leave `MCP_API_KEY` unset to keep the endpoint open (relying on network controls). Comparison is constant-time; use a long random value.
+
 ### Docker
 
 Run the HTTP server in a container — no local Node install needed.
@@ -109,7 +111,7 @@ docker build -t teamgantt-mcp .
 docker run -p 3000:3000 -e TEAMGANTT_API_TOKEN=your-token teamgantt-mcp
 ```
 
-Point any HTTP MCP client at `http://localhost:3000/mcp`. In multi-tenant mode (no server-side token), each client sends its own `Authorization: Bearer <token>`.
+Point any HTTP MCP client at `http://localhost:3000/mcp`. In multi-tenant mode (no server-side token), each client sends its own `Authorization: Bearer <token>`. When exposing the container beyond localhost, set `MCP_API_KEY` (see above) so `/mcp` requires the shared key.
 
 ## 🧰 Tools
 
@@ -241,6 +243,7 @@ Read-only resources under the `teamgantt://` scheme, for clients that browse res
 | `PORT` | — | `3000` | HTTP transport port (or `--port`) |
 | `HOST` | — | `127.0.0.1` | HTTP bind interface; set `0.0.0.0` to accept external/container connections |
 | `MCP_ALLOWED_HOSTS` | — | — | Extra allowed Host headers for HTTP transport |
+| `MCP_API_KEY` | — | — | Shared secret gating the HTTP `/mcp` endpoint. When set, clients must send it as `X-API-Key: <key>` or `Authorization: Bearer <key>` (401 otherwise). Unset = endpoint open |
 | `LOG_LEVEL` | — | `info` | `error` \| `warn` \| `info` \| `debug` |
 
 ## 🧱 Architecture
@@ -280,7 +283,7 @@ Tests never hit the network: the HTTP client takes an injectable `fetchFn`, and 
 
 ## 🧭 Roadmap
 
-Milestones **M1–M4 are shipped** (v0.5.0): projects/tasks/time tracking → response trimming → comments & discussions → people/resources/workload → reports, webhooks, MCP resources, multi-tenant HTTP auth.
+Milestones **M1–M4 are shipped** (v0.5.0): projects/tasks/time tracking → response trimming → comments & discussions → people/resources/workload → reports, webhooks, MCP resources, multi-tenant HTTP auth. The current release (**v0.6.0**) adds cross-project group moves (`update_group`) and optional `MCP_API_KEY` protection for the HTTP endpoint.
 
 Planned next: task detail & content (checklists, documents, history), planning & analysis (critical path, baselines, RACI), sharing & access control, Kanban boards, company configuration & templates, and custom fields.
 

@@ -12,5 +12,9 @@ services:
       # Comma-separated extra Host header values to accept, if you reach the
       # server through a hostname other than localhost (DNS-rebinding guard).
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
+      # Optional shared secret gating /mcp. When set, clients must send it as
+      # 'X-API-Key: <key>' or 'Authorization: Bearer <key>'. Strongly recommended
+      # when exposing the container beyond localhost.
+      MCP_API_KEY: ${MCP_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     restart: unless-stopped

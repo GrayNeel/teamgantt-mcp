@@ -28,6 +28,7 @@ async function main(): Promise<void> {
       ...(host ? { host } : {}),
       ...(allowedHosts ? { allowedHosts } : {}),
       ...(config.apiToken ? { defaultToken: config.apiToken } : {}),
+      ...(config.mcpApiKey ? { apiKey: config.mcpApiKey } : {}),
       createServer: (apiToken) =>
         createServer(new TeamGanttClient({ token: apiToken, baseUrl: config.baseUrl })),
     });

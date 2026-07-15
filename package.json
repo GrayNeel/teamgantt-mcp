@@ -1,6 +1,6 @@
 {
   "name": "teamgantt-mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "MCP server exposing the TeamGantt API for AI-driven team and time management",
   "license": "MIT",
   "repository": {

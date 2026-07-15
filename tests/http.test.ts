@@ -52,6 +52,13 @@ describe("HTTP transport multi-tenant auth", () => {
     return client;
   }
 
+  async function connectWithHeaders(url: URL, headers: Record<string, string>) {
+    const client = new Client({ name: "http-test", version: "0.0.0" });
+    const transport = new StreamableHTTPClientTransport(url, { requestInit: { headers } });
+    await client.connect(transport);
+    return client;
+  }
+
   it("rejects initialization without a token when no default is configured", async () => {
     const url = await startServer(vi.fn());
     await expect(connect(url)).rejects.toThrow(/401|Unauthorized/i);
@@ -85,6 +92,50 @@ describe("HTTP transport multi-tenant auth", () => {
 
     const headers = fetchFn.mock.calls[0]![1].headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer env-token");
+    await client.close();
+  });
+
+  it("rejects requests without the configured API key", async () => {
+    const url = await startServer(vi.fn(), { apiKey: "secret-key", defaultToken: "env-token" });
+    await expect(connect(url)).rejects.toThrow(/401|Unauthorized/i);
+  });
+
+  it("accepts the API key via the X-API-Key header and uses the env token", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { id: 1 }));
+    const url = await startServer(fetchFn, { apiKey: "secret-key", defaultToken: "env-token" });
+
+    const client = await connectWithHeaders(url, { "X-API-Key": "secret-key" });
+    await client.callTool({ name: "get_project", arguments: { project_id: 1 } });
+
+    const headers = fetchFn.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer env-token");
+    await client.close();
+  });
+
+  it("accepts the API key as a bearer token without treating it as a TeamGantt token", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { id: 1 }));
+    const url = await startServer(fetchFn, { apiKey: "secret-key", defaultToken: "env-token" });
+
+    const client = await connect(url, "secret-key");
+    await client.callTool({ name: "get_project", arguments: { project_id: 1 } });
+
+    const headers = fetchFn.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer env-token");
+    await client.close();
+  });
+
+  it("keeps per-session tenant tokens when a gate key is present", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { id: 1 }));
+    const url = await startServer(fetchFn, { apiKey: "secret-key" });
+
+    const client = await connectWithHeaders(url, {
+      "X-API-Key": "secret-key",
+      Authorization: "Bearer alice-token",
+    });
+    await client.callTool({ name: "get_project", arguments: { project_id: 1 } });
+
+    const headers = fetchFn.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer alice-token");
     await client.close();
   });
 });
